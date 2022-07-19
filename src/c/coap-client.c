@@ -62,12 +62,12 @@ bool GetEndDeviceProtocolProperties(const devsdk_protocols *protocols,
   iot_log_debug(sdk_ctx->lc, "COAP:End dev addr ptr= %s",
                 end_dev_params_ptr->end_dev_addr);
 				
-  //inserisco il parametro della porta
+  //DEFINIRE LA PORTA CON IL PARAMETRO ED_PORT
   params_ptr = iot_data_string_map_get_string(props, "ED_PORT");
-  if (params_ptr == NULL) {
-    *exception = iot_data_alloc_string("property in device PORT missing",
+  if (params_ptr == NULL) { //SE NON INSERISCO LA PROPRIETA' ED_PORT, NELLA CREAZIONE DI UN DISPOSITIVO COAP IN EdgeX, VIENE SOLLEVATO ERRORE
+    *exception = iot_data_alloc_string("property in device ED_PORT missing INSERIRE LA PROPRIETA' ED_PORT CON UN VALORE DI PORTA",
                                        IOT_DATA_REF);
-    return false;
+    return false; 
   }
   strcpy(end_dev_params_ptr->end_dev_port, params_ptr);
   iot_log_debug(sdk_ctx->lc, "COAP:End dev PORT ptr= %s",
