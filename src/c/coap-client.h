@@ -29,6 +29,7 @@ extern "C" {
 
 typedef struct {
   char end_dev_addr[256];             // To hold IPv6 address
+  char end_dev_port[16];              //Memorizzare la porta su cui inviare le richieste get o post al server
   coap_security_mode_t security_mode; /**< CoAP transport security mode */
   char psk_key[16];
 } end_dev_params;

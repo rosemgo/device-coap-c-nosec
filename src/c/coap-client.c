@@ -42,7 +42,7 @@ static bool coap_resp_rcvd = false;
  */
 bool GetEndDeviceProtocolProperties(const devsdk_protocols *protocols,
                                     char *protocol_name, iot_data_t **exception,
-                                    end_dev_params *end_dev_params_ptr,
+                                    end_dev_params *end_dev_params_ptr, // end_dev_params è una struct definita in coap-client.h 
                                     coap_driver *driver) {
   coap_driver *sdk_ctx = (coap_driver *)driver;
   const iot_data_t *props =
@@ -61,6 +61,19 @@ bool GetEndDeviceProtocolProperties(const devsdk_protocols *protocols,
   strcpy(end_dev_params_ptr->end_dev_addr, params_ptr);
   iot_log_debug(sdk_ctx->lc, "COAP:End dev addr ptr= %s",
                 end_dev_params_ptr->end_dev_addr);
+				
+  //inserisco il parametro della porta
+  params_ptr = iot_data_string_map_get_string(props, "ED_PORT");
+  if (params_ptr == NULL) {
+    *exception = iot_data_alloc_string("property in device PORT missing",
+                                       IOT_DATA_REF);
+    return false;
+  }
+  strcpy(end_dev_params_ptr->end_dev_port, params_ptr);
+  iot_log_debug(sdk_ctx->lc, "COAP:End dev PORT ptr= %s",
+                end_dev_params_ptr->end_dev_port);
+  //FINE MODIFICA PORTA
+				
 
   params_ptr = iot_data_string_map_get_string(props, "ED_SecurityMode");
   if (params_ptr == NULL) {
@@ -172,7 +185,7 @@ finish:
   coap_resp_rcvd = true;
 }
 /*
-Handling NACK messages for coap requests
+Handling NACK messages for coap requests //GESTIONE DELLA MANCATA RICEZIONE DELL ACK
 */
 static void nack_handler(coap_context_t *context, coap_session_t *session,
                          coap_pdu_t *sent, coap_nack_reason_t reason,
@@ -210,7 +223,7 @@ static void WaitForCoapResponseFromEndDevice(coap_context_t *ctx,
   }
 }
 /*
-send put request to end device
+send PUT request to end device
 */
 int CoapSendCommandToEndDevice(uint8_t *data, size_t len, char *dev_name,
                                char *resource_name,
@@ -227,19 +240,20 @@ int CoapSendCommandToEndDevice(uint8_t *data, size_t len, char *dev_name,
 
   coap_startup();
   coap_proto_t proto = COAP_PROTO_UDP;
-  char *port = "5683";
+ // char *port = "5683";
 
   if (end_dev_params_ptr->security_mode != SECURITY_MODE_NOSEC) {
     proto = COAP_PROTO_DTLS;
-    port = "5684";
+   // port = "5684";
   }
 
-  if (resolve_address(end_dev_params_ptr->end_dev_addr, port, &dst) < 0) {
+
+  if (resolve_address(end_dev_params_ptr->end_dev_addr, end_dev_params_ptr->end_dev_port, &dst) < 0) {
     coap_log(LOG_CRIT, "COAP:failed to resolve address\n");
     return result;
   }
-  iot_log_debug(sdk_ctx->lc, "COAP: End dev addr = %s",
-                end_dev_params_ptr->end_dev_addr);
+  iot_log_debug(sdk_ctx->lc, "COAP: End dev addr = %s : %s", 
+                end_dev_params_ptr->end_dev_addr, end_dev_params_ptr->end_dev_port); //end_dev_port
 
   iot_log_debug(sdk_ctx->lc, "COAP: Data = %d, Len = %d", *post_data, len);
   /* create CoAP context and a client session */
@@ -327,19 +341,19 @@ int CoapGetRequestToEndDevice(char *dev_name, char *resource_name,
   coap_startup();
 
   coap_proto_t proto = COAP_PROTO_UDP;
-  char *port = "5683";
+ // char *port = "5683";
 
   if (end_dev_params_ptr->security_mode != SECURITY_MODE_NOSEC) {
     proto = COAP_PROTO_DTLS;
-    port = "5684";
+ //   port = "5684";
   }
 
-  if (resolve_address(end_dev_params_ptr->end_dev_addr, port, &dst) < 0) {
+  if (resolve_address(end_dev_params_ptr->end_dev_addr, end_dev_params_ptr->end_dev_port, &dst) < 0) {
     coap_log(LOG_CRIT, "COAP:failed to resolve address\n");
     return result;
   }
-  iot_log_debug(sdk_ctx->lc, "COAP: End dev addr = %s",
-                end_dev_params_ptr->end_dev_addr);
+  iot_log_debug(sdk_ctx->lc, "COAP: End dev addr = %s : %s",
+                end_dev_params_ptr->end_dev_addr, end_dev_params_ptr->end_dev_port);
 
   /* create CoAP context and a client session */
   ctx = coap_new_context(NULL);
@@ -376,7 +390,7 @@ int CoapGetRequestToEndDevice(char *dev_name, char *resource_name,
     return result;
   }
 
-  sprintf(uri, "/a1r/%s/%s", dev_name, resource_name);
+  sprintf(uri, "/a1r/%s/%s", dev_name, resource_name); //CREA L'URI E LO STAMPA
   int res;
 #define BUFSIZE 40
   unsigned char _buf[BUFSIZE] = {0};
