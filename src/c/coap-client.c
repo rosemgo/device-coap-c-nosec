@@ -42,7 +42,7 @@ static bool coap_resp_rcvd = false;
  */
 bool GetEndDeviceProtocolProperties(const devsdk_protocols *protocols,
                                     char *protocol_name, iot_data_t **exception,
-                                    end_dev_params *end_dev_params_ptr, // end_dev_params è una struct definita in coap-client.h 
+                                    end_dev_params *end_dev_params_ptr, // end_dev_params è una struct definita in coap-client.h che contiene tutti i parametri per comunicare con il server coap
                                     coap_driver *driver) {
   coap_driver *sdk_ctx = (coap_driver *)driver;
   const iot_data_t *props =
@@ -52,29 +52,17 @@ bool GetEndDeviceProtocolProperties(const devsdk_protocols *protocols,
                                        IOT_DATA_REF);
     return false;
   }
-  const char *params_ptr = iot_data_string_map_get_string(props, "ED_ADDR");
+  const char *params_ptr = iot_data_string_map_get_string(props, "ED_ADDR"); //setting dell'indirizzo a cui il client vuole connettersi
   if (params_ptr == NULL) {
     *exception = iot_data_alloc_string("property in device address missing",
                                        IOT_DATA_REF);
     return false;
   }
-  strcpy(end_dev_params_ptr->end_dev_addr, params_ptr);
+  strcpy(end_dev_params_ptr->end_dev_addr, params_ptr); //l'indirizzo passato nel campo ED_ADDR del device in EdgeX viene inserito nel campo 'end_dev_params_ptr->end_dev_addr' della struct
   iot_log_debug(sdk_ctx->lc, "COAP:End dev addr ptr= %s",
                 end_dev_params_ptr->end_dev_addr);
 				
-  //inserisco il parametro della porta
-  params_ptr = iot_data_string_map_get_string(props, "ED_PORT");
-  if (params_ptr == NULL) {
-    *exception = iot_data_alloc_string("property in device PORT missing",
-                                       IOT_DATA_REF);
-    return false;
-  }
-  strcpy(end_dev_params_ptr->end_dev_port, params_ptr);
-  iot_log_debug(sdk_ctx->lc, "COAP:End dev PORT ptr= %s",
-                end_dev_params_ptr->end_dev_port);
-  //FINE MODIFICA PORTA
-				
-
+  
   params_ptr = iot_data_string_map_get_string(props, "ED_SecurityMode");
   if (params_ptr == NULL) {
     *exception = iot_data_alloc_string("property in device address missing",
@@ -112,8 +100,30 @@ bool GetEndDeviceProtocolProperties(const devsdk_protocols *protocols,
     default:
       break;
   }
+  
+  
+  //Prelevo il valore di ED_PORT dal device definito in EdgeX
+  params_ptr = iot_data_string_map_get_string(props, "ED_PORT");
+  if (params_ptr == NULL) { //SE LA PORTA NON VIENE INSERITA, SI SETTA DI DEFAULT 5683 O 5684 IN BASE ALLA SECURITY_MOD
+    *exception = iot_data_alloc_string("property in device PORT missing, SETTING DEFAULT PORT",
+                                       IOT_DATA_REF);
+    //setto le porte di default
+    if (end_dev_params_ptr->security_mode != SECURITY_MODE_NOSEC) {
+       params_ptr = "5684";
+    }
+    else{                                          
+    	params_ptr = "5683";
+    
+    }	
+  }
+  strcpy(end_dev_params_ptr->end_dev_port, params_ptr);
+  iot_log_debug(sdk_ctx->lc, "COAP:End dev PORT ptr= %s",
+                end_dev_params_ptr->end_dev_port);
+  //FINE INSERIMENTO PORTA
+     
   return true;
 }
+
 /*
  * coap get request callback handler. Get coap data from the coap pdu and update
  * it to coap_resp_data
@@ -222,6 +232,7 @@ static void WaitForCoapResponseFromEndDevice(coap_context_t *ctx,
     }
   }
 }
+
 /*
 send PUT request to end device
 */
@@ -240,18 +251,29 @@ int CoapSendCommandToEndDevice(uint8_t *data, size_t len, char *dev_name,
 
   coap_startup();
   coap_proto_t proto = COAP_PROTO_UDP;
- // char *port = "5683";
+//char *port = "5683";
 
   if (end_dev_params_ptr->security_mode != SECURITY_MODE_NOSEC) {
     proto = COAP_PROTO_DTLS;
-   // port = "5684";
+   //port = "5684";
   }
-
-
+  
+/*  Commentata perchè il setting della porta viene fatto direttamente nella funzione GetEndDeviceProtocolProperties al rigo 105
+  if(end_dev_params_ptr->end_dev_port = NULL) { //se il device in EdgeX è stato definito senza il parametro ED_PORT si setta la porta di DEFAULT
+  	if (end_dev_params_ptr->security_mode != SECURITY_MODE_NOSEC)  //se il device ha la modalità di sicurezza PSK si setta di default la porta 5684
+ 		end_dev_params_ptr->end_dev_port = "5684";
+        else
+  		end_dev_params_ptr->end_dev_port = 5683; //se il device NON ha la modalità di sicurezza PSK si setta di default la porta 5683
+  }
+*/
+  
+  
   if (resolve_address(end_dev_params_ptr->end_dev_addr, end_dev_params_ptr->end_dev_port, &dst) < 0) {
     coap_log(LOG_CRIT, "COAP:failed to resolve address\n");
     return result;
   }
+  
+
   iot_log_debug(sdk_ctx->lc, "COAP: End dev addr = %s : %s", 
                 end_dev_params_ptr->end_dev_addr, end_dev_params_ptr->end_dev_port); //end_dev_port
 
@@ -348,6 +370,15 @@ int CoapGetRequestToEndDevice(char *dev_name, char *resource_name,
  //   port = "5684";
   }
 
+/* Commentata perchè il setting della porta viene fatto direttamente nella funzione GetEndDeviceProtocolProperties al rigo 105
+  if(end_dev_params_ptr->end_dev_port = NULL) { //se il device in EdgeX è stato definito senza il parametro ED_PORT si setta la porta di DEFAULT
+  	if (end_dev_params_ptr->security_mode != SECURITY_MODE_NOSEC)  //se il device ha la modalità di sicurezza PSK si setta di default la porta 5684
+ 		end_dev_params_ptr->end_dev_port = "5684";
+        else
+  		end_dev_params_ptr->end_dev_port = 5683; //se il device NON ha la modalità di sicurezza PSK si setta di default la porta 5683
+  }
+*/
+  	
   if (resolve_address(end_dev_params_ptr->end_dev_addr, end_dev_params_ptr->end_dev_port, &dst) < 0) {
     coap_log(LOG_CRIT, "COAP:failed to resolve address\n");
     return result;
